@@ -1,0 +1,107 @@
+#!/bin/bash
+
+function usage() {
+    echo "Usage: $0 [followers] [redundancy] "
+    echo -e "\tfollowers - optional number of followers (default 2)"
+    echo -e "\tredundancy - optional number of redundancy (default 2)"
+}
+
+if [ "$#" -eq "0" ]; then
+    followers=2
+    redundancy=2
+elif [ "$#" -eq "2" ]; then
+    followers=$1
+    redundancy=$2
+else
+    usage
+    exit
+fi
+
+RUN_DIR=`dirname "$0"`
+
+$RUN_DIR/tpcleader 16200 $followers $redundancy &
+
+
+function ctrl_c() {
+    echo ""
+    for kv_pid in $(jobs -p)
+    do
+        kill "${kv_pid}" 2>/dev/null
+    done
+    exit
+}
+
+trap ctrl_c INT
+
+until lsof -i :16200 >/dev/null
+do
+    echo "Waiting for tpcleader to start..."
+    sleep 1
+done
+
+for i in `seq 1 $followers`; do
+    $RUN_DIR/tpcfollower $((i + 16200)) 16200 &
+done
+
+BLUE=`tput setaf 4`
+RED=`tput setaf 1`
+GREEN=`tput setaf 2`
+NORMAL=`tput sgr0`
+
+echo "${GREEN}All processes started${NORMAL}"
+echo "Go to ${BLUE}http://192.168.162.162:16200${NORMAL} to connect to the ${GREEN}TPCLeader${NORMAL}."
+if [ "$followers" -eq 2 ]; then
+    echo "Go to ${BLUE}http://192.168.162.162:16201${NORMAL} or ${BLUE}:16202${NORMAL} to connect to a ${GREEN}TPCFollower${NORMAL}."
+else
+    echo "Go to ${BLUE}http://192.168.162.162:16201${NORMAL},${BLUE}:16202${NORMAL}, ${BLUE}:etc${NORMAL} to connect to a ${GREEN}TPCFollower${NORMAL}."
+fi
+echo "Use ${RED}Ctrl+C${NORMAL} to stop all processes."
+
+echo ""
+
+# Check user input loop
+while true; do
+    echo "Usage: ${GREEN}<input>${NORMAL} where ${GREEN}<input>${NORMAL} is one of the following"
+    echo -e "\t${GREEN}q${NORMAL}: quit"
+    echo -e "\t${GREEN}k${NORMAL} ${BLUE}<port>${NORMAL}: kill follower on port"
+    echo -e "\t${GREEN}r${NORMAL} ${BLUE}<port>${NORMAL}: restart follower on port"
+    echo -e "\t${GREEN}l${NORMAL}: list ports of followers"
+    echo -e "INPUT: \c"
+    read input
+    if [ -z "$input" ]; then
+        continue
+    fi
+    IFS=' ' read -r -a array <<< "$input"
+    if [ ${array[0]} = "q" ]; then
+        for kv_pid in $(jobs -p)
+        do
+            kill "${kv_pid}" 2>/dev/null
+        done
+    exit
+    elif [ ${array[0]} = "k" ]; then
+        if [ ${#array[@]} -ne 2 ]; then
+            echo -e "\t${RED}k should have one argument${NORMAL}"
+        else
+            pid=$(lsof -i :${array[1]} | tail -1 | tr -s " " " " | cut -d " " -f 2) 2> /dev/null
+            if [ -z $pid ] || [ ${array[1]} -eq 16200 ]; then
+                echo -e "\t${RED} ${array[1]} is not a valid follower${NORMAL}"
+            else
+                kill $pid
+                echo -e "\tkilled follower with port: ${BLUE}${array[1]}${NORMAL}"
+            fi
+        fi
+    elif [ ${array[0]} = "r" ]; then
+        pid=$(lsof -i :${array[1]} | tail -1 | tr -s " " " " | cut -d " " -f 2) 2> /dev/null
+        if [ ${#array[@]} -ne 2 ]; then
+            echo -e "\t${RED}r should have one argument${NORMAL}"
+        elif [ -z $pid ]; then
+            $RUN_DIR/tpcfollower ${array[1]} 16200 2> /dev/null > /dev/null &
+            echo -e "\tlaunched server with port ${BLUE}${array[1]}${NORMAL}"
+        else
+            echo -e "\t ${RED}follower with port ${BLUE}${array[1]}${RED} already exists${NORMAL}"
+        fi
+    elif [ ${array[0]} = "l" ]; then
+        ports=`ps aux | grep ./tpcfollower | grep -v "grep" | tr -s " " " " | cut -d " " -f 12 | sort -n | xargs`
+        echo -e "\thave followers with ports: ${BLUE}$ports${NORMAL}"
+    fi
+done

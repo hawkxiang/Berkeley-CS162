@@ -1,0 +1,129 @@
+HTTP/1.1 200 OK
+Content-Type: text/html
+Server: CS 162 Project 4
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/normalize/3.0.3/normalize.css" />
+    <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.css" />
+    <style type="text/css">
+      .container {
+        margin-top: 6rem;
+        margin-bottom: 3rem;
+        max-width: 800px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h3 class="title">CS 162 HW4 Web Client</h3>
+      <p>Connected to <strong><script>document.write(window.location.host);</script></strong>, a <strong><span class="server-type"></span></strong>.</p>
+      <div class="form row">
+        <div class="six columns">
+          <label>Key</label>
+          <input name="key" class="u-full-width" type="text" placeholder="Key" />
+        </div>
+        <div class="six columns">
+          <label>Value</label>
+          <input name="value" class="u-full-width" type="text" placeholder="Value" />
+        </div>
+        <hr />
+        <div style="text-align: center;">
+          <button data-method="REGISTER" class="leader-only form-submit button" style="display: none;">REGISTER</button>
+          <button data-method="COMMIT" class="follower-only form-submit button" style="display: none;">COMMIT</button>
+          <button data-method="ABORT" class="follower-only form-submit button" style="display: none;">ABORT</button>
+          <button data-method="GET" class="form-submit button">GET</button>
+          <button data-method="PUT" class="form-submit button">PUT</button>
+          <button data-method="DELETE" class="form-submit button">DELETE</button>
+        </div>
+      </div>
+      <hr />
+      <div class="log">
+        <div class="row">
+          <div class="six columns">
+            <label>Message Log</label>
+          </div>
+          <div class="six columns">
+            <button class="u-pull-right clear-log buttom">Clear</button>
+          </div>
+        </div>
+        <div class="messages">
+          <p class="messages-placeholder" style="text-align: center; color: #777777;">Your requests will appear here.</p>
+        </div>
+      </div>
+    </div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script>
+var setServerType = function(type) {
+  $('.' + type + '-only').removeAttr('style');
+  $('.server-type').text((type === 'leader') ? 'TPCLeader' : 'TPCFollower');
+};
+var prependMessage = function(req_method, req_path, res_status, res_body) {
+  var innerHTML =
+    "Request:  <strong>" + req_method + "</strong> " + req_path + "\n" +
+    "Response: <strong>" + res_status.toString() + "</strong>";
+  if (res_body !== undefined && res_body !== "") {
+    innerHTML += (" " + res_body);
+  }
+  var extra_styles = {};
+  if (res_status >= 200 && res_status <= 299) {
+    extra_styles.background = "rgb(247, 255, 249)";
+    extra_styles.borderColor = "rgb(226, 245, 227)";
+  } else if (res_status >= 500 && res_status <= 599) {
+    extra_styles.background = "rgb(255, 247, 247)";
+    extra_styles.borderColor = "rgb(255, 231, 231)";
+  }
+  var message_html = $("<pre/>")
+    .append($("<code/>").html(innerHTML).css(extra_styles))
+    .hide()
+    .css("opacity", "0");
+  $(".messages").prepend(message_html);
+  var placeholder = $(".messages-placeholder");
+  message_html.slideDown(200, function() {
+    message_html.animate({opacity: "1"}, 200);
+    placeholder.fadeOut();
+  });
+};
+$(document).ready(function() {
+  $(".clear-log").click(function(e) {
+    $(".messages").empty();
+  });
+  $(".form-submit").click(function(e) {
+    var path;
+    var method = $(e.target).data("method");
+    if (method === "COMMIT" || method === "ABORT") {
+      path = "/" + method.toLowerCase();
+      method = "POST";
+    } else {
+      path = "/?"
+      var params = {
+        key: $(".form input[name='key']").val(),
+        val: $(".form input[name='value']").val(),
+      };
+      if (method === "REGISTER") {
+        method = "POST";
+        path = "/register?"
+      } else if (method === "GET" || method === "DELETE") {
+        delete params['val'];
+      }
+      path += $.param(params);
+    }
+    $.ajax(path, {
+      method: method,
+      error: function(jqXHR, textStatus, errorThrown) {
+        if (jqXHR.readyState == 0) {
+          prependMessage(method, path, "Network Error", "The TPC request failed to send.");
+        } else {
+          prependMessage(method, path, jqXHR.status, jqXHR.responseText);
+        }
+      },
+      success: function(data, textStatus, jqXHR) {
+        prependMessage(method, path, jqXHR.status, jqXHR.responseText);
+      },
+    });
+  });
+});
+    </script>
+  </body>
+</html>
