@@ -54,6 +54,7 @@ int connect_to(const char *host, int port, int timeout) {
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   ent = gethostbyname(host);
   if (ent == NULL) {
+    close(sockfd);
     return -1;
   }
   memset(&addr, 0, sizeof(addr));
@@ -67,6 +68,7 @@ int connect_to(const char *host, int port, int timeout) {
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&t, sizeof(t));
   }
   if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    close(sockfd);
     return -1;
   }
   return sockfd;
