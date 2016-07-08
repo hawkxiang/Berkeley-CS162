@@ -1,0 +1,24 @@
+Use objdump with the -D flag on the map executable. Which of the addresses from the output of
+running ./map are defined in the executable, and which segment/section is each defined in?
+
+_main recur两个函数定义在.text中；
+foo: .rss段中，不分配内存，初始化为0
+stuff: .data段中，进行初始化。
+char*指针变量和i分配在函数栈上。
+heap内存分配在对应的堆内存上。
+
+Make a list of the important segments, and what they are used for (look up their names on the
+Internet if you don’t know).
+.text  代码段
+.data  全局数据，或者静态数据，需要进行初始化
+.rss   全局数据，或者静态数据，未初始化，不分配内存。
+
+
+What direction is the stack growing in?
+栈地址从高到底。
+
+
+Are the two malloc()ed memory areas contiguous? (e.g. is there any extra space between their
+addresses?)
+
+两个heap不连续
