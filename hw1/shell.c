@@ -26,6 +26,8 @@ pid_t shell_pgid;
 
 int cmd_exit(struct tokens *tokens);
 int cmd_help(struct tokens *tokens);
+int cmd_pwd(struct tokens *tokens);
+int cmd_cd(struct tokens *tokens);
 
 /* Built-in command functions take token array (see parse.h) and return int */
 typedef int cmd_fun_t(struct tokens *tokens);
@@ -40,6 +42,8 @@ typedef struct fun_desc {
 fun_desc_t cmd_table[] = {
   {cmd_help, "?", "show this help menu"},
   {cmd_exit, "exit", "exit the command shell"},
+  {cmd_pwd, "pwd", "get the current working directory"},
+  {cmd_cd, "cd", "change the current working directory to that directory"},
 };
 
 /* Prints a helpful description for the given command */
@@ -54,6 +58,23 @@ int cmd_exit(struct tokens *tokens) {
   exit(0);
 }
 
+int cmd_pwd(struct tokens *tokens) {
+  const int FILEPATH_MAX=80;
+  char file_path[FILEPATH_MAX];
+  getcwd(file_path, FILEPATH_MAX);
+  printf("%s\n", file_path);
+  return 1;
+}
+#define HOME "/home/vagrant"
+int cmd_cd(struct tokens *tokens) {
+  char *dir;
+  if ((dir = tokens_get_token(tokens, 1)) == NULL || strcmp(dir, "~") == 0)
+    /*fprintf(stderr, "sh:  expected argument to \"cd\"\n");*/
+    dir = HOME;
+  if (chdir(dir) != 0)
+      perror("sh");
+  return 1;
+}
 /* Looks up the built-in command, if it exists. */
 int lookup(char cmd[]) {
   for (int i = 0; i < sizeof(cmd_table) / sizeof(fun_desc_t); i++)
