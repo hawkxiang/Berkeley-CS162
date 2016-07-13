@@ -32,7 +32,7 @@ int cmd_launch(struct tokens *tokens) {
     // struct obsolute path.
     if (strstr(path, "/") == NULL)
         path = absolute_path(args[0]);
-
+    //not use PATH value
     if (execv(path, args) == -1)
         perror("sh");
     free(path);
