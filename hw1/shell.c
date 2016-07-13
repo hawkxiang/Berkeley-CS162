@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "tokenizer.h"
+#include "launch.h"
 
 /* Whether the shell is connected to an actual terminal or not. */
 bool shell_is_interactive;
@@ -111,7 +112,6 @@ void init_shell() {
 
 int main(int argc, char *argv[]) {
   init_shell();
-
   static char line[4096];
   int line_num = 0;
 
@@ -130,7 +130,8 @@ int main(int argc, char *argv[]) {
       cmd_table[fundex].fun(tokens);
     } else {
       /* REPLACE this to run commands as programs. */
-      fprintf(stdout, "This shell doesn't know how to run programs.\n");
+      //fprintf(stdout, "This shell doesn't know how to run programs.\n");
+      cmd_launch(tokens);
     }
 
     if (shell_is_interactive)
