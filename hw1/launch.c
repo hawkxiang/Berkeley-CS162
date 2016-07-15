@@ -6,77 +6,37 @@
 #include <fcntl.h>
 
 #include "tokenizer.h"
-// struct obsolute path.
-char *absolute_path(char *filename) {
-    char *path = getenv("PATH"), *dir = strtok(path, ":");
-    while (dir != NULL && openat(open(dir, O_RDONLY), filename, O_RDONLY) == -1)
-        dir = strtok(NULL, ":");
-    if (dir != NULL) {
-        path = (char*)malloc(strlen(filename)+strlen(dir)+2);
-        strcpy(path, dir); strcat(path, "/"); strcat(path, filename);
-        return path;
-    } else 
-	return NULL;
-}
+#include "job_control.h"
 
-int cmd_launch(struct tokens *tokens) {
-  pid_t pid;
-  int status;
-  
-  //flush cache
-  fflush(0);
-  pid = fork();
-  if (pid == 0) {
-    //struct process args & handle redirection
-    int len = tokens_get_length(tokens), i;
+void cmd_launch(struct tokens *tokens, const char* line) {
+    if (tokens_get_token(tokens, 0) == NULL) return;
+    /* put the new job in the job list tail. */
+    job *j = first_job;
+    while (j->next != NULL) j = j->next;
+    j = j->next = (job*)malloc(sizeof(job));
+    j->next = NULL; j->pgid = 0; j->stdin = 0; j->stdout = 1; j->stderr = 2;
+    j->command = line;
+
+    /* build process list */
+    process head, *p = &head;
+    int len = tokens_get_length(tokens), i, k;
     char *args[len+1]; args[len] = NULL;
-    char *input = NULL, *output = NULL;
-    for (i = 0; i < len; i++) {
+    for (i = 0, k = 0; i < len; i++) {
         args[i] = tokens_get_token(tokens, i);
-        if (strcmp(args[i], "<") == 0) {
-           args[i] = NULL;
-           input = tokens_get_token(tokens, i+1);;
-        } else if (strcmp(args[i], ">") == 0) {
-           args[i] = NULL;
-           output = tokens_get_token(tokens, i+1);
+        if (strcmp(args[i], "|") == 0) {
+            args[i] = NULL;
+            p = p->next = (process*)calloc(1, sizeof(process));
+            p->argv = (args+k);
+            k = i+1;
         }
     }
-
-    if (input != NULL) {
-        int fd_in;
-        if ((fd_in = open(input, O_RDONLY, 0)) == -1) {
-           perror("Couldn't open input file!");
-           exit(EXIT_FAILURE);
-        }
-        dup2(fd_in, STDIN_FILENO);
-        close(fd_in);
+    p = p->next = (process*)calloc(1, sizeof(process));
+    p->argv = (args+k);
+    int foreground = 1;
+    if (strcmp(args[len-1], "&") == 0) {
+        foreground = 0;
+        args[len-1] = NULL;
     }
-    if (output != NULL) {
-        int fd_out;
-        if ((fd_out = open(output, O_WRONLY|O_APPEND|O_CREAT, 0644)) == -1) {
-           perror("Couldn't open output file!");
-           exit(EXIT_FAILURE);
-        }
-        dup2(fd_out, STDOUT_FILENO);
-        close(fd_out);
-    }
-    
-    //handle obsolute path.
-    char *path = args[0];
-    if (strstr(path, "/") == NULL)
-        path = absolute_path(args[0]);
-
-    //not use PATH value
-    if (execv(path, args) == -1)
-        perror("sh");
-    free(path);
-    exit(EXIT_FAILURE);
-  } else if (pid < 0)
-	perror("sh");
-  else {
-    do {
-      waitpid(pid, &status, WUNTRACED);
-    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
-  }
-  return 1;
+    j->first_process = head.next;
+    launch_job(j, foreground);
 }

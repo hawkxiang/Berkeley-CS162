@@ -10,20 +10,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "init_shell.h"
 #include "tokenizer.h"
 #include "launch.h"
 
-/* Whether the shell is connected to an actual terminal or not. */
-bool shell_is_interactive;
-
-/* File descriptor for the shell input */
-int shell_terminal;
-
-/* Terminal mode settings for the shell */
-struct termios shell_tmodes;
-
-/* Process group id for the shell */
-pid_t shell_pgid;
 
 int cmd_exit(struct tokens *tokens);
 int cmd_help(struct tokens *tokens);
@@ -85,39 +75,16 @@ int lookup(char cmd[]) {
 }
 
 /* Intialization procedures for this shell */
-void init_shell() {
-  /* Our shell is connected to standard input. */
-  shell_terminal = STDIN_FILENO;
-
-  /* Check if we are running interactively */
-  shell_is_interactive = isatty(shell_terminal);
-
-  if (shell_is_interactive) {
-    /* If the shell is not currently in the foreground, we must pause the shell until it becomes a
-     * foreground process. We use SIGTTIN to pause the shell. When the shell gets moved to the
-     * foreground, we'll receive a SIGCONT. */
-    while (tcgetpgrp(shell_terminal) != (shell_pgid = getpgrp()))
-      kill(-shell_pgid, SIGTTIN);
-
-    /* Saves the shell's process id */
-    shell_pgid = getpid();
-
-    /* Take control of the terminal */
-    tcsetpgrp(shell_terminal, shell_pgid);
-
-    /* Save the current termios to a variable, so it can be restored later. */
-    tcgetattr(shell_terminal, &shell_tmodes);
-  }
-}
-
+/* init_shell implement move to init_shell.h and init_shell.c */
 int main(int argc, char *argv[]) {
   init_shell();
   static char line[4096];
   int line_num = 0;
+  first_job = (job *)calloc(1, sizeof(job));
 
   /* Please only print shell prompts when standard input is not a tty */
   if (shell_is_interactive)
-    fprintf(stdout, "%d: ", line_num);
+    fprintf(stdout, "SHELL %d: ", line_num);
 
   while (fgets(line, 4096, stdin)) {
     /* Split our line into words. */
@@ -131,15 +98,16 @@ int main(int argc, char *argv[]) {
     } else {
       /* REPLACE this to run commands as programs. */
       //fprintf(stdout, "This shell doesn't know how to run programs.\n");
-      cmd_launch(tokens);
+      cmd_launch(tokens, line);
     }
 
     if (shell_is_interactive)
       /* Please only print shell prompts when standard input is not a tty */
-      fprintf(stdout, "%d: ", ++line_num);
+      fprintf(stdout, "SHELL %d: ", ++line_num);
 
     /* Clean up memory */
     tokens_destroy(tokens);
+    job_destroy();
   }
 
   return 0;

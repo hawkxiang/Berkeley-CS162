@@ -1,3 +1,3 @@
 #pragma once
 
-int cmd_launch(struct tokens*);
+void cmd_launch(struct tokens*, const char* line);
