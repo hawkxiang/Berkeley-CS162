@@ -75,7 +75,7 @@ void launch_process (process *p, pid_t pgid,
     }
     /* Exec the new process.  Make sure we exit.  */
     execvp (p->argv[0], p->argv);
-    perror ("execvl");
+    perror ("execvp");
     exit (1);
 }
 
