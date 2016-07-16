@@ -69,16 +69,19 @@ int job_is_completed(job *j)
 }
 
 void job_destroy() {
-    job *j = first_job->next; 
+    job *pre = first_job, *j; 
     process *p, *tmp;
-    while (j != NULL && job_is_completed(j)){
-        for (p = j->first_process; p;) {
+    while (pre != NULL){
+        j = pre->next;
+        if (j != NULL && job_is_completed(j)){
+            for (p = j->first_process; p;) {
 		tmp = p;
 		p = p->next;
 		free(tmp);
-	}
-        first_job->next = j->next;
-        free(j);
-        j = first_job->next;
+	    }
+            pre->next = j->next;
+            free(j);
+        } else 
+            pre = pre->next;
     }
 }

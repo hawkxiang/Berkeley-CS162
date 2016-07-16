@@ -6,7 +6,7 @@
 #include <fcntl.h>
 
 #include "tokenizer.h"
-#include "job_control.h"
+#include "launch.h"
 
 void cmd_launch(struct tokens *tokens, const char* line) {
     if (tokens_get_token(tokens, 0) == NULL) return;
@@ -15,7 +15,7 @@ void cmd_launch(struct tokens *tokens, const char* line) {
     while (j->next != NULL) j = j->next;
     j = j->next = (job*)malloc(sizeof(job));
     j->next = NULL; j->pgid = 0; j->stdin = 0; j->stdout = 1; j->stderr = 2;
-    j->command = line;
+    j->command = line; tcgetattr(shell_terminal, &j->tmodes);
 
     /* build process list */
     process head, *p = &head;
@@ -39,4 +39,33 @@ void cmd_launch(struct tokens *tokens, const char* line) {
     }
     j->first_process = head.next;
     launch_job(j, foreground);
+    update_status();
+}
+
+void job_wait() {
+    wait_background();
+}
+void switch_fg(pid_t pgid) {
+    job *j, *i;
+    if (pgid > 0)
+        j = find_job(pgid);
+    else {
+        for (i = first_job; i->next; i = i->next);
+        j = i;
+    }
+    if (j != NULL)
+        continue_job(j, 1);
+}
+
+void switch_bg(pid_t pgid) {
+    job *j, *i;
+    if (pgid > 0)
+        j = find_job(pgid);
+    else {
+        for (i = first_job->next; i; i = i->next)
+            if (job_is_stopped(i)) j = i;
+    }
+    if (j != NULL)
+        continue_job(j, 0);
+
 }

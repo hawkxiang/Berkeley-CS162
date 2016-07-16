@@ -81,7 +81,7 @@ void launch_process (process *p, pid_t pgid,
 
 void put_job_in_foreground(job* j, int cont);
 void put_job_in_background(job* j, int cont);
-void wait_for_job(job *j, int foreground);
+void wait_for_job(job *j);
 void format_job_info (job *j, const char *status);
 
 void launch_job (job *j, int foreground) {
@@ -128,7 +128,7 @@ void launch_job (job *j, int foreground) {
     
     format_job_info (j, "launched");
     if (!shell_is_interactive)
-        wait_for_job(j, foreground);
+        wait_for_job(j);
     /* set foreground in parent to avoid race conditions */
     else if (foreground)
         put_job_in_foreground(j, 0);
@@ -142,13 +142,15 @@ void launch_job (job *j, int foreground) {
 void put_job_in_foreground (job* j, int cont) {
     /* Put the job into the foreground.  */
     tcsetpgrp (shell_terminal, j->pgid);
+    tcgetattr(shell_terminal, &shell_tmodes);
+    tcsetattr(shell_terminal, TCSADRAIN, &j->tmodes);
     /* Send the job a continue signal, if necessary */
     if (cont) 
         /* boardcast to process in 'gpid' process group */
         if (kill(-j->pgid, SIGCONT) < 0)
             perror("kill (SIGCONT)");
     /* Wait for it to report.  */
-    wait_for_job(j, 1);
+    wait_for_job(j);
     /* Put the shell back in the foreground.  */
     tcsetpgrp(shell_terminal, shell_pgid);
     /* Restore the shell’s terminal modes.  */
@@ -160,7 +162,7 @@ void put_job_in_background (job *j, int cont){
     if (cont)
         if (kill(-j->pgid, SIGCONT) < 0)
             perror("kill (SIGCONT)");
-    wait_for_job(j, 0);
+    //wait_for_job(j, 0);
 }
 
 
@@ -170,7 +172,7 @@ int mark_process_status (pid_t pid, int status) {
     job* j;
     process *p;
     if (pid > 0) {
-        for (j = first_job; j; j=j->next)
+        for (j = first_job->next; j; j=j->next)
             for (p = j->first_process; p; p = p->next)
                 if (p->pid == pid) {
                     p->status = status;
@@ -198,19 +200,33 @@ int mark_process_status (pid_t pid, int status) {
 void format_job_info (job *j, const char *status) {
    fprintf (stderr, "%ld (%s): %s\n", (long)j->pgid, status, j->command);
 }
-void wait_for_job(job *j, int foreground) {
+
+void wait_for_job(job *j) {
     int status;
     pid_t pid;
 
-    do {
+    do
         //pid = waitpid(WAIT_ANY, &status, WUNTRACED);
-        if (foreground)
-         pid = waitpid(-j->pgid, &status, WUNTRACED);
-        else
-         pid = waitpid(-j->pgid, &status, WUNTRACED|WNOHANG);
-    }while (!mark_process_status(pid, status)
+        pid = waitpid(-j->pgid, &status, WUNTRACED);
+    while (!mark_process_status(pid, status)
             && !job_is_stopped(j)
             && !job_is_completed(j));
+}
+
+void wait_background() {
+    job *j;
+    for (j = first_job->next; j; j = j->next)
+        if (!job_is_completed(j))
+            wait_for_job(j);
+}
+
+void update_status() {
+    int status;
+    pid_t pid;
+    
+    do
+        pid = waitpid(WAIT_ANY, &status, WUNTRACED|WNOHANG);
+    while (!mark_process_status(pid, status));
 }
 
 void mark_job_as_running(job* j) {
