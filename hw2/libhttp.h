@@ -46,4 +46,5 @@ void http_send_data(int fd, char *data, size_t size);
  */
 char *http_get_mime_type(char *file_name);
 
+void http_fatal_error(const char* message);
 #endif

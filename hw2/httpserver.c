@@ -13,9 +13,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <unistd.h>
+
 
 #include "libhttp.h"
+#define NAME_LEN 1024
+#define RESPONSE_SIZE 8192
 
 /*
  * Global configuration variables.
@@ -39,22 +41,97 @@ int server_proxy_port;
  *      of files in the directory with links to each.
  *   4) Send a 404 Not Found response.
  */
+void error_response(int fd);
+void list_response(int fd, char *file, char* path);
+void normal_response(int fd, int file_fd, int total_len);
 void handle_files_request(int fd) {
 
   /* YOUR CODE HERE (Feel free to delete/modify the existing code below) */
-
   struct http_request *request = http_request_parse(fd);
+  /* open the web server root directiory */
+  char root_dir[NAME_LEN];
+  if (getcwd(root_dir, NAME_LEN) == NULL)
+      http_fatal_error("get web server root dir failed!"); 
+  sprintf(root_dir+strlen(root_dir), "/%s%s", server_files_directory, request->path);
+  root_dir[strlen(root_dir)] = 0;
 
-  http_start_response(fd, 200);
-  http_send_header(fd, "Content-type", "text/html");
-  http_end_headers(fd);
-  http_send_string(fd,
-      "<center>"
-      "<h1>Welcome to httpserver!</h1>"
-      "<hr>"
-      "<p>Nothing's here yet.</p>"
-      "</center>");
+  int root_fd, index_fd;
+  if ((root_fd = open(root_dir, O_RDONLY)) == -1){
+      error_response(fd);
+      perror( root_dir);
+  }
+  /* chech this file is a directory or normal file */
+  struct stat file_stat;
+  if (fstat(root_fd, &file_stat) == -1)
+        http_fatal_error("open request file stat failed!");
 
+  if (S_ISDIR(file_stat.st_mode)) {
+      if ((index_fd = openat(root_fd, "index.html", O_RDONLY)) == -1)
+          list_response(fd, root_dir, request->path);
+      else {
+          /*  get the index.html */
+          if (fstat(index_fd, &file_stat) < 0)
+              http_fatal_error("get index.html stat failed");
+          normal_response(fd, index_fd, file_stat.st_size);
+      }
+      close(root_fd);
+      return;
+  }
+  normal_response(fd, root_fd, file_stat.st_size);
+  close(root_fd);
+}
+
+void list_response(int fd, char *file, char *path) {
+    DIR *dp;
+    struct dirent *dirp;
+    char buf[RESPONSE_SIZE+1];
+    int clen = 0;
+    if ((dp = opendir(file)) == NULL)
+        http_fatal_error("open web source director failed");
+    while ((dirp = readdir(dp)) != NULL) {
+       struct stat child_stat;
+       if (fstatat(dirfd(dp), dirp->d_name, &child_stat,AT_SYMLINK_NOFOLLOW) == -1) 
+           http_fatal_error("fstatat error");
+       if (S_ISDIR(child_stat.st_mode))
+            clen += sprintf(buf+clen, "%s%s%s%s%s%s%s", "<a href=\"", path, "/", dirp->d_name, "/\">", dirp->d_name, "</a><br/>");
+       else if(S_ISREG(child_stat.st_mode))
+            clen += sprintf(buf+clen, "%s%s%s%s%s%s%s", "<a href=\"", path, "/", dirp->d_name, "\">", dirp->d_name, "</a><br/>");
+    }
+    buf[clen] = 0;
+    closedir(dp);
+
+    http_start_response(fd, 200);
+    http_send_header(fd, "Content-type", "text/html");
+    char snum[16]; 
+    int term = sprintf(snum, "%d", clen);
+    snum[term] = 0;
+    http_send_header(fd, "Content-Length", snum);
+    http_end_headers(fd);
+    http_send_string(fd, buf);
+}
+
+void normal_response(int fd, int file_fd, int total_len) {
+    http_start_response(fd, 200);
+    http_send_header(fd, "Content-type", "text/html");
+    char snum[16];
+    int term = sprintf(snum, "%d", total_len);
+    snum[term] = 0;
+    http_send_header(fd, "Content-Length", snum);
+    http_end_headers(fd);
+    char buf[RESPONSE_SIZE+1];
+    ssize_t rlen; 
+    while(total_len) {
+        rlen = read(file_fd, buf, RESPONSE_SIZE);
+        total_len -= rlen;
+        http_send_data(fd, buf, rlen);
+    }
+}
+
+void error_response(int fd) {
+    http_start_response(fd, 404);
+    http_send_header(fd, "Content-type", "text/html");
+    http_send_header(fd, "Content-Length", "0");
+    http_end_headers(fd);
 }
 
 /*
