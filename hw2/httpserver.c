@@ -44,6 +44,7 @@ int server_proxy_port;
 void error_response(int fd);
 void list_response(int fd, char *file, char* path);
 void normal_response(int fd, int file_fd, int total_len);
+
 void handle_files_request(int fd) {
 
   /* YOUR CODE HERE (Feel free to delete/modify the existing code below) */
@@ -58,6 +59,7 @@ void handle_files_request(int fd) {
   int root_fd, index_fd;
   if ((root_fd = open(root_dir, O_RDONLY)) == -1){
       error_response(fd);
+      close(root_fd);
       perror( root_dir);
   }
   /* chech this file is a directory or normal file */
@@ -80,6 +82,15 @@ void handle_files_request(int fd) {
   normal_response(fd, root_fd, file_stat.st_size);
   close(root_fd);
 }
+void head_response(int fd, int total_len) {
+    http_start_response(fd, 200);
+    http_send_header(fd, "Content-type", "text/html");
+    char snum[16];
+    int term = sprintf(snum, "%d", total_len);
+    snum[term] = 0;
+    http_send_header(fd, "Content-Length", snum);
+    http_end_headers(fd);
+}
 
 void list_response(int fd, char *file, char *path) {
     DIR *dp;
@@ -99,25 +110,13 @@ void list_response(int fd, char *file, char *path) {
     }
     buf[clen] = 0;
     closedir(dp);
-
-    http_start_response(fd, 200);
-    http_send_header(fd, "Content-type", "text/html");
-    char snum[16]; 
-    int term = sprintf(snum, "%d", clen);
-    snum[term] = 0;
-    http_send_header(fd, "Content-Length", snum);
-    http_end_headers(fd);
+  
+    head_response(fd, clen);
     http_send_string(fd, buf);
 }
 
 void normal_response(int fd, int file_fd, int total_len) {
-    http_start_response(fd, 200);
-    http_send_header(fd, "Content-type", "text/html");
-    char snum[16];
-    int term = sprintf(snum, "%d", total_len);
-    snum[term] = 0;
-    http_send_header(fd, "Content-Length", snum);
-    http_end_headers(fd);
+    head_response(fd, total_len);
     char buf[RESPONSE_SIZE+1];
     ssize_t rlen; 
     while(total_len) {
@@ -128,10 +127,7 @@ void normal_response(int fd, int file_fd, int total_len) {
 }
 
 void error_response(int fd) {
-    http_start_response(fd, 404);
-    http_send_header(fd, "Content-type", "text/html");
-    http_send_header(fd, "Content-Length", "0");
-    http_end_headers(fd);
+    head_response(fd, 0);
 }
 
 /*
