@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-ggdb3 -c -Wall
 LDFLAGS=-pthread
-SOURCES=httpserver.c libhttp.c
+SOURCES=httpserver.c libhttp.c httpproxy.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=httpserver
 

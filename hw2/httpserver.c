@@ -14,8 +14,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-
 #include "libhttp.h"
+#include "httpproxy.h"
 #define NAME_LEN 1024
 #define RESPONSE_SIZE 8192
 
@@ -154,6 +154,8 @@ void handle_proxy_request(int fd) {
  */
 void serve_forever(int *socket_number, void (*request_handler)(int)) {
 
+  if (request_handler == handle_proxy_request) {proxy(); return;}
+  
   struct sockaddr_in server_address, client_address;
   size_t client_address_length = sizeof(client_address);
   int client_socket_number;
