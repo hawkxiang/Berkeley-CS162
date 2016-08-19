@@ -53,7 +53,7 @@ int main() {
     mm_free(data2);
     int *data3 = (int*) mm_malloc(sizeof(int));
     assert(data3 != NULL);
-    data[0] = 0x162;
+    data3[0] = 0x162;
     printf("%d malloc test successful!\n", *data3);
     printf("%p malloc test successful!\n", data3);
     mm_free(data3);

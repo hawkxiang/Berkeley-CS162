@@ -1,5 +1,5 @@
 #include "util.h"
-const int BLOCK_SIZE = 40;
+const int BLOCK_SIZE = sizeof(struct s_block) - sizeof(char*);
 t_block base = NULL;
 
 t_block find_block(t_block *last, size_t s) {
