@@ -41,7 +41,22 @@ int main() {
     int *data = (int*) mm_malloc(sizeof(int));
     assert(data != NULL);
     data[0] = 0x162;
+    printf("%d malloc test successful!\n", *data);
+    printf("%p malloc test successful!\n", data);
+    //mm_free(data);
+    char *data2 = (char*) mm_malloc(sizeof(char)*100);
+    assert(data2 != NULL);
+    for (int i = 0; i < 99; i++) data2[i] = 'a';
+    data2[99] = 0;
+    printf("%s\n", data2);
+    printf("%p\n", data2);
+    mm_free(data2);
+    int *data3 = (int*) mm_malloc(sizeof(int));
+    assert(data3 != NULL);
+    data[0] = 0x162;
+    printf("%d malloc test successful!\n", *data3);
+    printf("%p malloc test successful!\n", data3);
+    mm_free(data3);
     mm_free(data);
-    printf("malloc test successful!\n");
     return 0;
 }
