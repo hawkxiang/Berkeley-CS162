@@ -54,7 +54,7 @@ void handle_files_request(int fd) {
   if (getcwd(root_dir, NAME_LEN) == NULL)
       http_fatal_error("get web server root dir failed!"); 
   sprintf(root_dir+strlen(root_dir), "/%s%s", server_files_directory, request->path);
-  root_dir[strlen(root_dir)] = 0;
+  root_dir[strlen(root_dir)] = '\0';
 
   int root_fd, index_fd;
   if ((root_fd = open(root_dir, O_RDONLY)) == -1){
@@ -87,7 +87,7 @@ void head_response(int fd, int total_len) {
     http_send_header(fd, "Content-type", "text/html");
     char snum[16];
     int term = sprintf(snum, "%d", total_len);
-    snum[term] = 0;
+    snum[term] = '\0';
     http_send_header(fd, "Content-Length", snum);
     http_end_headers(fd);
 }
@@ -108,7 +108,7 @@ void list_response(int fd, char *file, char *path) {
        else if(S_ISREG(child_stat.st_mode))
             clen += sprintf(buf+clen, "%s%s%s%s%s%s%s", "<a href=\"", path, "/", dirp->d_name, "\">", dirp->d_name, "</a><br/>");
     }
-    buf[clen] = 0;
+    buf[clen] = '\0';
     closedir(dp);
   
     head_response(fd, clen);
