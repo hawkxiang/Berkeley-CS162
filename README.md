@@ -11,6 +11,4 @@
 1. 完成project1：实现sleep优化工作，避免busy loop；实现priority donate，能够使得高priority线程。
 速得到cpu。此外，同步元件lock能够传递priority，当lock release时等待队列中的高priority线程优先拿锁；实现
 
-1. 完成project1：实现sleep优化工作，避免busy loop；实现priority donate，能够使得高priority线程。速得到cpu。此外，同步元件lock能够传递priority，当lock release时等待队列中的高priority线程优先拿锁。mlsfp多级
-1. 完成project1：实现sleep优化工作，避免busy loop；实现priority donate，能够使得高priority线程。速得到cpu。此外，同步元件lock能够传递priority，当lock release时等待队列中的高priority线程优先拿锁。
-1. 完成project1：实现sleep优化工作，避免busy loop；实现priority donate，能够使得高priority线程。速得到cpu。此外，同步元件lock能够传递priority，当lock release时等待队列中的高priority线程优先拿锁。
+1. 完成project1：实现sleep优化工作，避免busy loop；实现priority donate，能够使得高priority线程。速得到cpu。此外，同步元件lock能够传递priority，当lock release时等待队列中的高priority线程优先拿锁；实现mlsfp多级队列线程调度算法，使用nice和recent_cpu基于指数平均计算线程priority。
